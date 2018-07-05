@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using Unity.Collections;
 using UnityEditor.IMGUI.Controls;
+using Unity.Entities.Properties;
 
 namespace Unity.Entities.Editor
 {
@@ -293,6 +295,31 @@ namespace Unity.Entities.Editor
             GUILayout.EndHorizontal();
         }
 
+        void DumpToCSVButton()
+        {
+            System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
+            var visitor = new EntityCSVVisitor();
+            visitor.m_stringBuilder = stringBuilder;
+
+            var entityManager = WorldSelection.GetExistingManager<EntityManager>();
+            var entityArray = entityListView.SelectedComponentGroup.GetEntityArray();
+            Debug.Log(SystemSelection.GetType().Name);
+            var CSVPath = EditorUtility.SaveFilePanel("Save entities in selected component group to CSV file", "", "DumpedEntities" + ".csv", "csv");
+            
+            if (CSVPath.Length != 0)
+            {
+                    for (int i = 0; i < entityArray.Length; i++)
+                    {
+                        stringBuilder.Append("Entity " + entityArray[i].Index.ToString() + ",");
+                        var container = new EntityContainer(entityManager, entityArray[i]);
+                        container.PropertyBag.Visit(ref container, visitor);
+                        stringBuilder.Remove(stringBuilder.Length - 1, 1); // delete trailing comma on each line
+                        stringBuilder.Append("\n");
+                    }
+                    System.IO.File.WriteAllText(CSVPath, stringBuilder.ToString());
+            }
+        }
+
         void EntityHeader()
         {
             if (WorldSelection == null)
@@ -307,12 +334,22 @@ namespace Unity.Entities.Editor
                 var type = SystemSelection.GetType();
                 AlignHeader(() => GUILayout.Label(type.Namespace, EditorStyles.label));
                 GUILayout.Label(type.Name, EditorStyles.boldLabel);
+
                 GUILayout.FlexibleSpace();
                 var system = SystemSelection as ComponentSystemBase;
                 if (system != null)
                 {
+
                     var running = system.Enabled && system.ShouldRunSystem();
                     AlignHeader(() => GUILayout.Label($"running: {(running ? "yes" : "no")}"));
+
+                    if(running && system.ComponentGroups.Length > 0 && entityListView.SelectedComponentGroup.GetEntityArray().Length > 0)
+                    {
+                        if (GUILayout.Button("Dump entities to CSV file"))
+                        {
+                            DumpToCSVButton();
+                        }
+                    }
                 }
             }
             GUILayout.EndHorizontal();

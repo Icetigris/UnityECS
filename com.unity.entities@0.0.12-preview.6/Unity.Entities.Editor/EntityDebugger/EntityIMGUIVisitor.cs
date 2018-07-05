@@ -276,4 +276,224 @@ namespace Unity.Entities.Editor
 #endif
         }
     }
+
+    public class EntityCSVVisitor : PropertyVisitor
+        , IPrimitivePropertyVisitor
+        , ICustomVisitPrimitives
+        , ICustomVisit<Unity.Mathematics.quaternion>
+        , ICustomVisit<Unity.Mathematics.float2>
+        , ICustomVisit<Unity.Mathematics.float3>
+        , ICustomVisit<Unity.Mathematics.float4>
+        , ICustomVisit<Unity.Mathematics.float4x4>
+        , ICustomVisit<Unity.Mathematics.float3x3>
+        , ICustomVisit<Unity.Mathematics.float2x2>
+    {
+        private static HashSet<Type> _primitiveTypes = new HashSet<Type>();
+        public System.Text.StringBuilder m_stringBuilder;
+
+        static EntityCSVVisitor()
+        {
+
+            foreach (var it in typeof(EntityCSVVisitor).GetInterfaces())
+            {
+                if (it.IsGenericType && typeof(ICustomVisit<>) == it.GetGenericTypeDefinition())
+                {
+                    var genArgs = it.GetGenericArguments();
+                    if (genArgs.Length == 1)
+                    {
+                        _primitiveTypes.Add(genArgs[0]);
+                    }
+                }
+            }
+            foreach (var it in typeof(PropertyVisitor).GetInterfaces())
+            {
+                if (it.IsGenericType && typeof(ICustomVisit<>) == it.GetGenericTypeDefinition())
+                {
+                    var genArgs = it.GetGenericArguments();
+                    if (genArgs.Length == 1)
+                    {
+                        _primitiveTypes.Add(genArgs[0]);
+                    }
+                }
+            }
+        }
+
+        public HashSet<Type> SupportedPrimitiveTypes()
+        {
+            return _primitiveTypes;
+        }
+
+        private class ComponentState
+        {
+            public ComponentState()
+            {
+                Showing = true;
+            }
+            public bool Showing { get; set; }
+        }
+        private Dictionary<string, ComponentState> _states = new Dictionary<string, ComponentState>();
+        private PropertyPath _currentPath = new PropertyPath();
+
+        protected override void Visit<TValue>(TValue value)
+        {
+            //GUILayout.Label(Property.Name);
+            m_stringBuilder.Append(Property.Name + "," + value.ToString());
+        }
+
+        public override void VisitEnum<TContainer, TValue>(ref TContainer container, VisitContext<TValue> context)
+        {
+            VisitSetup(ref container, ref context);
+
+            var t = typeof(TValue);
+            if (t.IsEnum)
+            {
+                m_stringBuilder.Append(t.Name + "," + context.Value.ToString());
+            }
+        }
+
+        public override bool BeginContainer<TContainer, TValue>(ref TContainer container, VisitContext<TValue> context)
+        {
+            VisitSetup(ref container, ref context);
+
+            _currentPath.Push(Property.Name, context.Index);
+            
+            return true;
+        }
+
+        public override void EndContainer<TContainer, TValue>(ref TContainer container, VisitContext<TValue> context)
+        {
+            VisitSetup(ref container, ref context);
+            _currentPath.Pop();
+        }
+
+        public override bool BeginList<TContainer, TValue>(ref TContainer container, VisitContext<TValue> context)
+        {
+            VisitSetup(ref container, ref context);
+            return true;
+        }
+
+        public override void EndList<TContainer, TValue>(ref TContainer container, VisitContext<TValue> context)
+        {
+            VisitSetup(ref container, ref context);
+        }
+
+        void ICustomVisit<Unity.Mathematics.quaternion>.CustomVisit(Unity.Mathematics.quaternion q)
+        {
+            m_stringBuilder.Append(Property.Name + "," + q.value.x + "," + q.value.y + "," + q.value.z + "," + q.value.w + ",");
+        }
+
+        void ICustomVisit<float2>.CustomVisit(float2 f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.x + "," + f.y + ",");
+        }
+
+        void ICustomVisit<float3>.CustomVisit(float3 f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.x + "," + f.y + "," + f.z + ",");
+        }
+
+        void ICustomVisit<float4>.CustomVisit(float4 f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.x + "," + f.y + "," + f.z + "," + f.w + ",");
+        }
+
+        void ICustomVisit<float2x2>.CustomVisit(float2x2 f)
+        {
+            //GUILayout.Label(Property.Name);
+            //EditorGUILayout.Vector2Field("", (Vector2)f.c0);
+            //EditorGUILayout.Vector2Field("", (Vector2)f.c1);
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<float3x3>.CustomVisit(float3x3 f)
+        {
+            //GUILayout.Label(Property.Name);
+            //EditorGUILayout.Vector3Field("", (Vector3)f.c0);
+            //EditorGUILayout.Vector3Field("", (Vector3)f.c1);
+            //EditorGUILayout.Vector3Field("", (Vector3)f.c2);
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<float4x4>.CustomVisit(float4x4 f)
+        {
+            //GUILayout.Label(Property.Name);
+            //EditorGUILayout.Vector4Field("", (Vector4)f.c0);
+            //EditorGUILayout.Vector4Field("", (Vector4)f.c1);
+            //EditorGUILayout.Vector4Field("", (Vector4)f.c2);
+            //EditorGUILayout.Vector4Field("", (Vector4)f.c3);
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        #region ICustomVisitPrimitives
+
+        void ICustomVisit<sbyte>.CustomVisit(sbyte f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<short>.CustomVisit(short f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<int>.CustomVisit(int f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<long>.CustomVisit(long f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<byte>.CustomVisit(byte f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<ushort>.CustomVisit(ushort f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<uint>.CustomVisit(uint f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<ulong>.CustomVisit(ulong f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<float>.CustomVisit(float f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<double>.CustomVisit(double f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<bool>.CustomVisit(bool f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<char>.CustomVisit(char f)
+        {
+            m_stringBuilder.Append(Property.Name + "," + f.ToString() + ",");
+        }
+
+        void ICustomVisit<string>.CustomVisit(string f)
+        {
+            if (Property == null)
+            {
+                return;
+            }
+            m_stringBuilder.Append(f + ",");
+        }
+        #endregion
+    }
 }
